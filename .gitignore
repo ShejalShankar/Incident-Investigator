@@ -1,0 +1,15 @@
+# Dependencies
+node_modules/
+
+# Cloudflare local state
+.wrangler/
+
+# Environment variables
+.env
+.dev.vars
+
+# macOS
+.DS_Store
+
+# Logs
+*.log
