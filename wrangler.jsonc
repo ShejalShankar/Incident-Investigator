@@ -20,7 +20,10 @@
 			"database_name": "incident-investigator-db",
 			"database_id": "cae8da29-8fe4-40ca-b743-d0be303125f7",
 		}
-	]
+	],
+	"ai": {
+  "binding": "AI"
+}
 	/**
 	 * Smart Placement
 	 * https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement
