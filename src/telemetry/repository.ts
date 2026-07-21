@@ -69,6 +69,33 @@ export interface QueryEventsInput {
   limit?: number;
 }
 
+export interface DeploymentRow {
+  id: string;
+  service_id: string;
+  service_name: string;
+  version: string;
+  commit_sha: string;
+  deployed_at: string;
+  summary: string;
+}
+
+export interface Deployment {
+  id: string;
+  serviceId: string;
+  serviceName: string;
+  version: string;
+  commitSha: string;
+  deployedAt: string;
+  summary: string;
+}
+
+export interface GetRecentDeploymentsInput {
+  serviceName?: string;
+  startTime?: string;
+  endTime?: string;
+  limit?: number;
+}
+
 function parseAttributes(value: string): Record<string, unknown> {
   try {
     const parsed: unknown = JSON.parse(value);
@@ -105,7 +132,7 @@ export class TelemetryRepository {
         WHERE queue_name = ?
         ORDER BY timestamp ASC
         LIMIT 100
-      `,
+        `,
       )
       .bind(queueName)
       .all<QueueSnapshotRow>();
@@ -196,10 +223,7 @@ export class TelemetryRepository {
         .map(() => "?")
         .join(", ");
 
-      conditions.push(
-        `e.event_type IN (${placeholders})`,
-      );
-
+      conditions.push(`e.event_type IN (${placeholders})`);
       bindings.push(...input.eventTypes);
     }
 
@@ -246,13 +270,75 @@ export class TelemetryRepository {
       serviceName: row.service_name,
       eventType: row.event_type,
       severity: row.severity,
-      correlationId:
-        row.correlation_id ?? undefined,
-      deploymentId:
-        row.deployment_id ?? undefined,
-      attributes: parseAttributes(
-        row.attributes_json,
-      ),
+      correlationId: row.correlation_id ?? undefined,
+      deploymentId: row.deployment_id ?? undefined,
+      attributes: parseAttributes(row.attributes_json),
     }));
   }
+
+  async getRecentDeployments(
+  input: GetRecentDeploymentsInput,
+): Promise<Deployment[]> {
+  const conditions: string[] = [];
+  const bindings: unknown[] = [];
+
+  if (input.serviceName) {
+    conditions.push("s.name = ?");
+    bindings.push(input.serviceName);
+  }
+
+  if (input.startTime) {
+    conditions.push("d.deployed_at >= ?");
+    bindings.push(input.startTime);
+  }
+
+  if (input.endTime) {
+    conditions.push("d.deployed_at <= ?");
+    bindings.push(input.endTime);
+  }
+
+  const limit = Math.min(
+    Math.max(input.limit ?? 10, 1),
+    50,
+  );
+
+  const whereClause =
+    conditions.length > 0
+      ? `WHERE ${conditions.join(" AND ")}`
+      : "";
+
+  const query = `
+    SELECT
+      d.id,
+      d.service_id,
+      s.name AS service_name,
+      d.version,
+      d.commit_sha,
+      d.deployed_at,
+      d.summary
+    FROM deployments d
+    JOIN services s
+      ON s.id = d.service_id
+    ${whereClause}
+    ORDER BY d.deployed_at DESC
+    LIMIT ?
+  `;
+
+  bindings.push(limit);
+
+  const result = await this.db
+    .prepare(query)
+    .bind(...bindings)
+    .all<DeploymentRow>();
+
+  return result.results.map((row) => ({
+    id: row.id,
+    serviceId: row.service_id,
+    serviceName: row.service_name,
+    version: row.version,
+    commitSha: row.commit_sha,
+    deployedAt: row.deployed_at,
+    summary: row.summary,
+  }));
+}
 }

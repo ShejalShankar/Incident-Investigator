@@ -1,5 +1,6 @@
 import { inspectQueue } from "./tools/inspect-queue";
 import { queryEvents } from "./tools/query-events";
+import { getRecentDeployments } from "./tools/get-recent-deployments";
 
 export interface Env {
   DB: D1Database;
@@ -142,10 +143,7 @@ export default {
         if (limitValue !== null) {
           limit = Number(limitValue);
 
-          if (
-            !Number.isInteger(limit) ||
-            limit < 1
-          ) {
+          if (!Number.isInteger(limit) || limit < 1) {
             throw new Error(
               "limit must be a positive integer",
             );
@@ -184,6 +182,68 @@ export default {
       }
     }
 
+    if (
+      request.method === "GET" &&
+      url.pathname === "/api/tools/get-recent-deployments"
+    ) {
+      try {
+        const serviceName =
+          url.searchParams.get("serviceName") ?? undefined;
+
+        const startTime =
+          url.searchParams.get("startTime") ?? undefined;
+
+        const endTime =
+          url.searchParams.get("endTime") ?? undefined;
+
+        const limitValue =
+          url.searchParams.get("limit");
+
+        let limit: number | undefined;
+
+        if (limitValue !== null) {
+          limit = Number(limitValue);
+
+          if (!Number.isInteger(limit) || limit < 1) {
+            throw new Error(
+              "limit must be a positive integer",
+            );
+          }
+        }
+
+        const result = await getRecentDeployments(
+          env.DB,
+          {
+            serviceName,
+            startTime,
+            endTime,
+            limit,
+          },
+        );
+
+        return Response.json({
+          tool: "get_recent_deployments",
+          status: "success",
+          count: result.length,
+          result,
+        });
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Unknown error";
+
+        return Response.json(
+          {
+            tool: "get_recent_deployments",
+            status: "error",
+            error: message,
+          },
+          { status: 400 },
+        );
+      }
+    }
+
     return Response.json({
       name: "Incident Investigator",
       endpoints: [
@@ -193,6 +253,9 @@ export default {
         "/api/tools/query-events?severity=error",
         "/api/tools/query-events?eventTypes=deployment_completed",
         "/api/tools/query-events?serviceName=notification-consumer&severity=error",
+        "/api/tools/get-recent-deployments",
+        "/api/tools/get-recent-deployments?serviceName=notification-api",
+        "/api/tools/get-recent-deployments?startTime=2026-07-21T02:50:00Z&endTime=2026-07-21T03:10:00Z",
       ],
     });
   },
