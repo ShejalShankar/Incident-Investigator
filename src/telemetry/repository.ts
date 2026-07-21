@@ -36,6 +36,57 @@ export interface QueueInspection {
   }>;
 }
 
+export interface TelemetryEventRow {
+  id: string;
+  timestamp: string;
+  service_id: string;
+  service_name: string;
+  event_type: string;
+  severity: "info" | "warning" | "error";
+  correlation_id: string | null;
+  deployment_id: string | null;
+  attributes_json: string;
+}
+
+export interface TelemetryEvent {
+  id: string;
+  timestamp: string;
+  serviceId: string;
+  serviceName: string;
+  eventType: string;
+  severity: "info" | "warning" | "error";
+  correlationId?: string;
+  deploymentId?: string;
+  attributes: Record<string, unknown>;
+}
+
+export interface QueryEventsInput {
+  serviceName?: string;
+  eventTypes?: string[];
+  severity?: "info" | "warning" | "error";
+  startTime?: string;
+  endTime?: string;
+  limit?: number;
+}
+
+function parseAttributes(value: string): Record<string, unknown> {
+  try {
+    const parsed: unknown = JSON.parse(value);
+
+    if (
+      typeof parsed === "object" &&
+      parsed !== null &&
+      !Array.isArray(parsed)
+    ) {
+      return parsed as Record<string, unknown>;
+    }
+
+    return {};
+  } catch {
+    return {};
+  }
+}
+
 export class TelemetryRepository {
   constructor(private readonly db: D1Database) {}
 
@@ -54,7 +105,7 @@ export class TelemetryRepository {
         WHERE queue_name = ?
         ORDER BY timestamp ASC
         LIMIT 100
-        `,
+      `,
       )
       .bind(queueName)
       .all<QueueSnapshotRow>();
@@ -112,5 +163,96 @@ export class TelemetryRepository {
         failureRate: row.failure_rate,
       })),
     };
+  }
+
+  async queryEvents(
+    input: QueryEventsInput,
+  ): Promise<TelemetryEvent[]> {
+    const conditions: string[] = [];
+    const bindings: unknown[] = [];
+
+    if (input.serviceName) {
+      conditions.push("s.name = ?");
+      bindings.push(input.serviceName);
+    }
+
+    if (input.severity) {
+      conditions.push("e.severity = ?");
+      bindings.push(input.severity);
+    }
+
+    if (input.startTime) {
+      conditions.push("e.timestamp >= ?");
+      bindings.push(input.startTime);
+    }
+
+    if (input.endTime) {
+      conditions.push("e.timestamp <= ?");
+      bindings.push(input.endTime);
+    }
+
+    if (input.eventTypes && input.eventTypes.length > 0) {
+      const placeholders = input.eventTypes
+        .map(() => "?")
+        .join(", ");
+
+      conditions.push(
+        `e.event_type IN (${placeholders})`,
+      );
+
+      bindings.push(...input.eventTypes);
+    }
+
+    const limit = Math.min(
+      Math.max(input.limit ?? 20, 1),
+      100,
+    );
+
+    const whereClause =
+      conditions.length > 0
+        ? `WHERE ${conditions.join(" AND ")}`
+        : "";
+
+    const query = `
+      SELECT
+        e.id,
+        e.timestamp,
+        e.service_id,
+        s.name AS service_name,
+        e.event_type,
+        e.severity,
+        e.correlation_id,
+        e.deployment_id,
+        e.attributes_json
+      FROM telemetry_events e
+      JOIN services s
+        ON s.id = e.service_id
+      ${whereClause}
+      ORDER BY e.timestamp DESC
+      LIMIT ?
+    `;
+
+    bindings.push(limit);
+
+    const result = await this.db
+      .prepare(query)
+      .bind(...bindings)
+      .all<TelemetryEventRow>();
+
+    return result.results.map((row) => ({
+      id: row.id,
+      timestamp: row.timestamp,
+      serviceId: row.service_id,
+      serviceName: row.service_name,
+      eventType: row.event_type,
+      severity: row.severity,
+      correlationId:
+        row.correlation_id ?? undefined,
+      deploymentId:
+        row.deployment_id ?? undefined,
+      attributes: parseAttributes(
+        row.attributes_json,
+      ),
+    }));
   }
 }
