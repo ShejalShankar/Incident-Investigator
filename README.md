@@ -109,9 +109,11 @@ Tech stack
 * Tool Calling
 
 ## Running locally
+
 ```
 npm install
 npm run dev
+
 ```
 
 ### Apply migrations
