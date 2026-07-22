@@ -60,3 +60,67 @@ The agent investigates the telemetry and identifies the deployment responsible f
                        │
                        ▼
                  Cloudflare D1
+
+Workers AI (@cf/openai/gpt-oss-120b) is used for reasoning and tool selection.
+
+Available tools
+
+inspect_queue
+Returns
+
+* queue depth
+* retry count
+* failure rate
+* baseline
+* historical snapshots
+
+query_events
+Queries telemetry events using filters such as
+
+* service
+* severity
+* event type
+* time window
+
+get_recent_deployments
+Returns deployments for a service, including
+
+* version
+* commit
+* timestamp
+* deployment summary
+
+Investigation flow
+The agent performs multi-step reasoning.
+Typical investigation:
+
+1. Inspect queue health
+2. Retrieve consumer failures
+3. Identify producer deployment
+4. Correlate deployment with failures
+5. Produce an evidence-backed report
+
+The UI exposes every tool call made by the agent.
+Tech stack
+* Cloudflare Workers
+* Workers AI
+* Cloudflare D1
+* TypeScript
+* Tool Calling
+
+## Running locally
+```
+npm install
+npm run dev
+```
+
+### Apply migrations
+```
+wrangler d1 migrations apply incident-investigator-db
+```
+### Seed demo data
+```
+wrangler d1 execute incident-investigator-db --file seed/demo-incident.sql
+```
+
+
