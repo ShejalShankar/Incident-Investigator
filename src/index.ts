@@ -1,7 +1,9 @@
 import { investigateIncident } from "./agent/incident-agent";
+import { simulatePayloadSchemaMismatch } from "./demo/incident-simulator";
 import { getRecentDeployments } from "./tools/get-recent-deployments";
 import { inspectQueue } from "./tools/inspect-queue";
 import { queryEvents } from "./tools/query-events";
+import { renderDashboard } from "./ui/dashboard";
 
 export interface Env {
   DB: D1Database;
@@ -15,6 +17,15 @@ interface InvestigationRequestBody {
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
+
+    if (
+      request.method === "GET" &&
+      url.pathname === "/"
+) {
+
+  return renderDashboard();
+
+}
 
     if (
       request.method === "GET" &&
@@ -54,6 +65,40 @@ export default {
               error instanceof Error
                 ? error.message
                 : "Unknown database error",
+          },
+          { status: 500 },
+        );
+      }
+    }
+
+    if (
+      request.method === "POST" &&
+      url.pathname ===
+        "/api/demo/scenarios/payload-schema-mismatch"
+    ) {
+      try {
+        const result =
+          await simulatePayloadSchemaMismatch(env.DB);
+
+        return Response.json({
+          status: "success",
+          message:
+            "Payload schema mismatch incident generated.",
+          result,
+        });
+      } catch (error) {
+        console.error(
+          "Incident simulation failed",
+          error,
+        );
+
+        return Response.json(
+          {
+            status: "error",
+            error:
+              error instanceof Error
+                ? error.message
+                : "Unknown simulation error",
           },
           { status: 500 },
         );
@@ -227,6 +272,13 @@ export default {
           method: "GET",
           path: "/api/db-health",
         },
+        simulateIncident: {
+          method: "POST",
+          path:
+            "/api/demo/scenarios/payload-schema-mismatch",
+          description:
+            "Generates fresh telemetry for a deployment-induced payload schema mismatch.",
+        },
         investigate: {
           method: "POST",
           path: "/investigate",
@@ -264,13 +316,31 @@ export default {
             path:
               "/api/tools/get-recent-deployments?serviceName=notification-api",
           },
-          {
-            method: "GET",
-            path:
-              "/api/tools/get-recent-deployments?startTime=2026-07-21T02:50:00Z&endTime=2026-07-21T03:10:00Z",
-          },
         ],
       },
+      suggestedDemoFlow: [
+        {
+          step: 1,
+          action: "Generate an incident",
+          request: {
+            method: "POST",
+            path:
+              "/api/demo/scenarios/payload-schema-mismatch",
+          },
+        },
+        {
+          step: 2,
+          action: "Ask the agent to investigate",
+          request: {
+            method: "POST",
+            path: "/investigate",
+            body: {
+              question:
+                "Investigate why notifications are delayed.",
+            },
+          },
+        },
+      ],
     });
   },
 } satisfies ExportedHandler<Env>;
