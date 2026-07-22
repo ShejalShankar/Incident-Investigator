@@ -108,21 +108,32 @@ Tech stack
 * TypeScript
 * Tool Calling
 
+
 ## Running locally
 
-```
+Install dependencies and start the development server.
+
+```bash
 npm install
 npm run dev
-
 ```
 
 ### Apply migrations
-```
+
+```bash
 wrangler d1 migrations apply incident-investigator-db
 ```
+
 ### Seed demo data
-```
-wrangler d1 execute incident-investigator-db --file seed/demo-incident.sql
+
+```bash
+wrangler d1 execute incident-investigator-db \
+  --file seed/demo-incident.sql
 ```
 
+### Deploy
+
+```bash
+wrangler deploy
+```
 
