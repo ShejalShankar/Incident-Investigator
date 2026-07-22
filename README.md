@@ -1,7 +1,6 @@
 # Incident Investigator
 
 An AI-powered incident investigation agent built on Cloudflare Workers.
-
 The project simulates a production incident, investigates it using tool calling, and generates an evidence-backed incident report.
 
 **Live Demo:**  
@@ -20,7 +19,6 @@ the agent gathers evidence by calling backend tools, correlates telemetry, and p
 The investigation is based only on retrieved data. The agent is instructed not to invent telemetry or assume causation without evidence.
 
 ## Demo scenario
-
 The included simulator generates a realistic production incident.
 
 **Scenario**
@@ -74,7 +72,6 @@ Workers AI (`@cf/openai/gpt-oss-120b`) is used for reasoning and tool selection.
 ## Available tools
 
 ### inspect_queue
-
 Returns:
 
 - Queue depth
@@ -84,7 +81,6 @@ Returns:
 - Historical queue snapshots
 
 ### query_events
-
 Queries telemetry using filters such as:
 
 - Service
@@ -93,7 +89,6 @@ Queries telemetry using filters such as:
 - Time window
 
 ### get_recent_deployments
-
 Returns deployment information including:
 
 - Version
@@ -103,9 +98,7 @@ Returns deployment information including:
 
 
 ## Investigation flow
-
 The agent performs multi-step reasoning.
-
 Typical investigation flow:
 
 1. Inspect queue health
@@ -117,7 +110,6 @@ Typical investigation flow:
 The UI also exposes every tool call made by the agent.
 
 ## Tech stack
-
 - Cloudflare Workers
 - Workers AI
 - Cloudflare D1
@@ -125,7 +117,6 @@ The UI also exposes every tool call made by the agent.
 - OpenAI Tool Calling
 
 ## Running locally
-
 Install dependencies and start the development server.
 
 ```bash
@@ -153,7 +144,6 @@ wrangler deploy
 ```
 
 ## Future improvements
-
 - Additional incident scenarios
 - Streaming investigation updates
 - More investigation tools
